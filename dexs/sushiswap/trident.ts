@@ -33,27 +33,19 @@ const startTimeQueryTrident = {
   volumeField: VOLUME_FIELD,
 };
 
-const tridentQuery = gql`
-  query trident($timestampLow: Int, $timestampHigh: Int) {
-    factoryDaySnapshots(where: { date_gt: $timestampLow, date_lt: $timestampHigh }, first: 10) {
-      date
+const dailyTridentQuery = gql`
+  query trident($timestampLow: Int, $timestampHigh: Int, $pairs: [String!]) {
+    pairDaySnapshots(where: { date_gt: $timestampLow, date_lt: $timestampHigh, pair_in: $pairs }, first: 1000) {
+      id
       volumeUSD
       feesUSD
-      factory {
-        type
-      }
-    }
-    factories(where: { type: "ALL" }) {
-      volumeUSD
-      feesUSD
-      type
     }
   }
 `;
 
 const allTimeTridentQuery = gql`
   query trident($tokenList: [String!]) {
-    pairs(
+    pairsByVolume: pairs(
       first: 1000
       orderBy: volumeUSD
       orderDirection: desc
@@ -63,46 +55,68 @@ const allTimeTridentQuery = gql`
       volumeUSD
       feesUSD
     }
+    pairsByTVL: pairs(
+      first: 1000
+      orderBy: liquidityUSD
+      orderDirection: desc
+      where: { token0_in: $tokenList, token1_in: $tokenList }
+    ) {
+      id
+    }
   }
 `;
+
+function getTotals(pairs: any) {
+  const total = {
+    totalVolume: 0,
+    totalFees: 0,
+    totalRevenue: 0,
+  };
+  for (let pair of pairs) {
+    total.totalVolume += Number(pair.volumeUSD);
+    total.totalFees += Number(pair.feesUSD);
+    total.totalRevenue += Number(pair.feesUSD) / 6;
+  }
+  return total;
+}
 
 const trident = Object.keys(endpointsTrident).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
       fetch: async (timestamp: number) => {
-        const tokenList = await getTokenList(); //todo: move to query only once
+        const tokenList = await getTokenList(); //query a whitelist of tokens to filter scams/fake volume
         const chainId = nameTochainId[chain];
         const chainTokenList = tokenList ? tokenList[chainId].map((address) => address.toLocaleLowerCase()) : [];
+
         const allTimePairs = await request(endpointsTrident[chain], allTimeTridentQuery, {
           tokenList: chainTokenList,
         });
-        const allTimeData = {
-          totalVolume: 0,
-          totalFees: 0,
-          totalRevenue: 0,
-        };
-        allTimePairs.pairs.map((pair: any) => {
-          allTimeData.totalVolume += Number(pair.volumeUSD);
-          allTimeData.totalFees += Number(pair.feesUSD);
-          allTimeData.totalRevenue += Number(pair.feesUSD) / 6;
+
+        // because pairDaySnapshots cannot be filtered by token0 and token1
+        //we create an array of safe pairs with biggest TVL to query their dailyVolume
+        const whitelistedPairs = allTimePairs.pairsByTVL.map((pair: any) => {
+          return pair.id;
         });
-        const res = await request(endpointsTrident[chain], tridentQuery, {
+        const dailyPairs = await request(endpointsTrident[chain], dailyTridentQuery, {
           timestampHigh: timestamp,
           timestampLow: timestamp - 3600 * 24,
+          pairs: whitelistedPairs,
         });
-        const daily = res.factoryDaySnapshots.find((snapshot: any) => {
-          return snapshot.factory.type == 'ALL';
-        });
+
+        const allTimeData = getTotals(allTimePairs.pairsByVolume);
+        const dailyData = getTotals(dailyPairs.pairDaySnapshots);
+
         return {
           timestamp: timestamp,
           totalVolume: allTimeData.totalVolume,
           totalFees: allTimeData.totalFees,
           totalUserFees: allTimeData.totalFees, //same as totalFees
           totalRevenue: allTimeData.totalRevenue,
-          dailyVolume: daily?.volumeUSD,
-          dailyFees: daily?.feesUSD,
-          dailyUserFees: daily?.feesUSD,
+          dailyVolume: dailyData.totalVolume,
+          dailyFees: dailyData.totalFees,
+          dailyUserFees: dailyData.totalFees, //same as totalFees
+          dailyRevenue: dailyData.totalRevenue,
         };
       },
       start: getStartTimestamp({ ...startTimeQueryTrident, chain }),
@@ -110,5 +124,7 @@ const trident = Object.keys(endpointsTrident).reduce(
   }),
   {}
 );
+
+console.log(trident);
 
 export default trident;
