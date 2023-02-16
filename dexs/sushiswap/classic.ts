@@ -6,20 +6,20 @@ import {
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 
 const endpointsClassic = {
-  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
-  [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/sushiswap/bsc-exchange",
-  [CHAIN.POLYGON]: "https://api.thegraph.com/subgraphs/name/sushiswap/matic-exchange",
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/sushiswap/fantom-exchange",
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushiswap/arbitrum-exchange",
-  [CHAIN.CELO]: "https://api.thegraph.com/subgraphs/name/sushiswap/celo-exchange",
-  [CHAIN.AVAX]: "https://api.thegraph.com/subgraphs/name/sushiswap/avalanche-exchange",
-  [CHAIN.HARMONY]: "https://api.thegraph.com/subgraphs/name/sushiswap/harmony-exchange",
-  [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/sushiswap/moonriver-exchange",
-  [CHAIN.XDAI]: "https://api.thegraph.com/subgraphs/name/sushiswap/xdai-exchange",
-  [CHAIN.MOONBEAM]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-moonbeam',
-  [CHAIN.BOBA]: 'https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba',
-  [CHAIN.FUSE]: 'https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse',
-};
+  [CHAIN.ETHEREUM]: "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-ethereum",
+  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-arbitrum",
+  [CHAIN.POLYGON] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-polygon",
+  [CHAIN.FANTOM] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-fantom",
+  [CHAIN.XDAI] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-gnosis",
+  [CHAIN.BOBA] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-boba",
+  [CHAIN.AVAX] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-avalanche",
+  [CHAIN.CELO] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-celo",
+  [CHAIN.BSC] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-bsc",
+  [CHAIN.HARMONY] : "https://api.thegraph.com/subgraphs/name/olastenberg/sushiswap-harmony-fix",
+  [CHAIN.MOONRIVER] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-moonriver",
+  [CHAIN.MOONBEAM] : "https://api.thegraph.com/subgraphs/name/sushi-v2/sushiswap-moonbeam",
+  [CHAIN.FUSE] : "https://api.thegraph.com/subgraphs/name/sushiswap/exchange-fuse"
+}
 
 const VOLUME_FIELD = "volumeUSD";
 
@@ -33,7 +33,7 @@ const feesPercent = {
   SupplySideRevenue: 0.25
 }
 
-const graphsClassic = getGraphDimensions({
+const graphsClassicOld = getGraphDimensions({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
@@ -46,7 +46,7 @@ const graphsClassic = getGraphDimensions({
   feesPercent
 });
 
-const graphsClassicBoba = getGraphDimensions({
+const graphsClassicNew = getGraphDimensions({
   graphUrls: endpointsClassic,
   totalVolume: {
     factory: "factories",
@@ -70,8 +70,8 @@ const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: chain == "boba" ? graphsClassicBoba(chain as Chain) : graphsClassic(chain as Chain),
-      start: chain == "boba" ? getStartTimestamp({ ...startTimeQueryClassic, dailyDataField: "factoryDaySnapshots", chain }) : getStartTimestamp({ ...startTimeQueryClassic, chain }),
+      fetch: chain != "fuse" ? graphsClassicNew(chain as Chain): graphsClassicOld(chain as Chain),
+      start: chain != "fuse" ? getStartTimestamp({ ...startTimeQueryClassic, dailyDataField: "factoryDaySnapshots", chain }) : getStartTimestamp({ ...startTimeQueryClassic, chain }),
       meta: {
         methodology: {
           Fees: "SushiSwap charges a flat 0.3% fee",
