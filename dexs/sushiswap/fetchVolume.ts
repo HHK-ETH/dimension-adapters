@@ -21,10 +21,10 @@ const nameTochainId: Record<string, string> = {
   [CHAIN.AVAX]: '43114',
 };
 
-const TOKEN_LIST_URL = 'https://helper.sushibackup.com/tokens';
+const TOKEN_LIST_URL = 'https://helper.sushibackup.com/tokens/';
 
-async function getTokenList(): Promise<Record<string, string[]>> {
-  const query = await axios.get(TOKEN_LIST_URL);
+async function getTokenList(chainId: string): Promise<string[]> {
+  const query = await axios.get(TOKEN_LIST_URL + chainId);
   return await query.data;
 }
 
@@ -76,9 +76,9 @@ function getTotals(pairs: any) {
 }
 
 async function fetchVolume(timestamp: number, chain: string, subgraph: string) {
-  const tokenList = await getTokenList(); //query a whitelist of tokens to filter scams/fake volume
   const chainId = nameTochainId[chain];
-  const chainTokenList = tokenList ? tokenList[chainId].map((address) => address.toLocaleLowerCase()) : [];
+  const tokenList = await getTokenList(chainId); //query a whitelist of tokens to filter scams/fake volume
+  const chainTokenList = tokenList.map((address) => address.toLocaleLowerCase());
 
   const allTimePairs = await request(subgraph, allTimeQuery, {
     tokenList: chainTokenList,
