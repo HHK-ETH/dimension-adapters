@@ -38,6 +38,16 @@ const dailyQuery = gql`
   }
 `;
 
+const dailyQueryUni = gql`
+  query daily($timestampLow: Int, $timestampHigh: Int, $pairs: [String!]) {
+    poolDayDatas(first: 1000, where: { date_gt: $timestampLow, date_lt: $timestampHigh, pool_in: $pairs }) {
+      id
+      volumeUSD
+      feesUSD
+    }
+  }
+`;
+
 const allTimeQuery = gql`
   query allTime($tokenList: [String!]) {
     pairsByVolume: pairs(
@@ -61,6 +71,29 @@ const allTimeQuery = gql`
   }
 `;
 
+const allTimeQueryUni = gql`
+  query allTime($tokenList: [String!]) {
+    pairsByVolume: pools(
+      first: 1000
+      orderBy: volumeUSD
+      orderDirection: desc
+      where: { token0_in: $tokenList, token1_in: $tokenList }
+    ) {
+      id
+      volumeUSD
+      feesUSD
+    }
+    pairsByTVL: pools(
+      first: 1000
+      orderBy: totalValueLockedUSD
+      orderDirection: desc
+      where: { token0_in: $tokenList, token1_in: $tokenList }
+    ) {
+      id
+    }
+  }
+`;
+
 function getTotals(pairs: any) {
   const total = {
     totalVolume: 0,
@@ -75,12 +108,12 @@ function getTotals(pairs: any) {
   return total;
 }
 
-async function fetchVolume(timestamp: number, chain: string, subgraph: string) {
+async function fetchVolume(timestamp: number, chain: string, subgraph: string, isUni = false) {
   const chainId = nameTochainId[chain];
   const tokenList = await getTokenList(chainId); //query a whitelist of tokens to filter scams/fake volume
   const chainTokenList = tokenList.map((address) => address.toLocaleLowerCase());
 
-  const allTimePairs = await request(subgraph, allTimeQuery, {
+  const allTimePairs = await request(subgraph, isUni ? allTimeQueryUni : allTimeQuery, {
     tokenList: chainTokenList,
   });
 
@@ -89,14 +122,14 @@ async function fetchVolume(timestamp: number, chain: string, subgraph: string) {
   const whitelistedPairs = allTimePairs.pairsByTVL.map((pair: any) => {
     return pair.id;
   });
-  const dailyPairs = await request(subgraph, dailyQuery, {
+  const dailyPairs = await request(subgraph, isUni ? dailyQueryUni : dailyQuery, {
     timestampHigh: timestamp,
     timestampLow: timestamp - 3600 * 24,
     pairs: whitelistedPairs,
   });
 
   const allTimeData = getTotals(allTimePairs.pairsByVolume);
-  const dailyData = getTotals(dailyPairs.pairDaySnapshots);
+  const dailyData = getTotals(isUni ? dailyPairs.poolDayDatas : dailyPairs.pairDaySnapshots);
 
   return {
     timestamp: timestamp,
