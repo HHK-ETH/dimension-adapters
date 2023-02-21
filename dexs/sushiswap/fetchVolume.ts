@@ -30,7 +30,7 @@ async function getTokenList(chainId: string): Promise<string[]> {
 
 const dailyQuery = gql`
   query daily($timestampLow: Int, $timestampHigh: Int, $pairs: [String!]) {
-    pairDaySnapshots(first: 1000, where: { date_gt: $timestampLow, date_lt: $timestampHigh, pair_in: $pairs }) {
+    pairDaySnapshots(first: 1000, where: { date_gt: $timestampLow, date_lte: $timestampHigh, pair_in: $pairs }) {
       id
       volumeUSD
       feesUSD
@@ -40,7 +40,7 @@ const dailyQuery = gql`
 
 const dailyQueryUni = gql`
   query daily($timestampLow: Int, $timestampHigh: Int, $pairs: [String!]) {
-    poolDayDatas(first: 1000, where: { date_gt: $timestampLow, date_lt: $timestampHigh, pool_in: $pairs }) {
+    poolDayDatas(first: 1000, where: { date_gt: $timestampLow, date_lte: $timestampHigh, pool_in: $pairs }) {
       id
       volumeUSD
       feesUSD
